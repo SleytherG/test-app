@@ -1,0 +1,43 @@
+ARG APP_NAME=test-app-web
+
+
+FROM openjdk:17-jdk-alpine as builder
+
+ARG APP_NAME
+
+WORKDIR /app/$APP_NAME
+
+COPY ./pom.xml /app
+
+RUN ls -R /app
+
+COPY ./$APP_NAME/.mvn ./.mvn
+COPY ./$APP_NAME/mvnw /app/$APP_NAME
+COPY ./$APP_NAME/pom.xml /app/$APP_NAME
+
+RUN ./mvnw clean package -Dmaven.test.skip -Dmaven.main.skip -Dspring-boot.repackage.skip && rm -r ./target/
+
+COPY ./$APP_NAME/src /app/$APP_NAME/src
+
+RUN ./mvnw clean package -DskipTests
+
+
+FROM openjdk:17-jdk-alpine
+
+ARG APP_NAME
+
+WORKDIR /app
+RUN mkdir ./logs
+
+ARG TARGET_FOLDER=/app/$APP_NAME/target
+
+COPY --from=builder $TARGET_FOLDER/test-app-web-0.0.1-SNAPSHOT.jar /app
+
+
+ARG PORT_APP=8090
+ENV PORT $PORT_APP
+
+EXPOSE $PORT
+
+
+CMD ["java", "-jar", "test-app-web-0.0.1-SNAPSHOT.jar"]
